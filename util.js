@@ -72,43 +72,43 @@ function getNeighborParams(span) {
 
 
   let spanId = getSpanId(xPlus, yPlus)
-  if (paramsBuffer[spanId]) {
-    neighbors.push(paramsBuffer[spanId])
+  if (paramsBuffers[activeCharSpanId][spanId]) {
+    neighbors.push(paramsBuffers[activeCharSpanId][spanId])
   }
 
   spanId = getSpanId(x, yPlus)
-  if (paramsBuffer[spanId]) {
-    neighbors.push(paramsBuffer[spanId])
+  if (paramsBuffers[activeCharSpanId][spanId]) {
+    neighbors.push(paramsBuffers[activeCharSpanId][spanId])
   }
 
   spanId = getSpanId(xMinus, yPlus)
-  if (paramsBuffer[spanId]) {
-    neighbors.push(paramsBuffer[spanId])
+  if (paramsBuffers[activeCharSpanId][spanId]) {
+    neighbors.push(paramsBuffers[activeCharSpanId][spanId])
   }
 
   spanId = getSpanId(xPlus, y)
-  if (paramsBuffer[spanId]) {
-    neighbors.push(paramsBuffer[spanId])
+  if (paramsBuffers[activeCharSpanId][spanId]) {
+    neighbors.push(paramsBuffers[activeCharSpanId][spanId])
   }
 
   spanId = getSpanId(xMinus, y)
-  if (paramsBuffer[spanId]) {
-    neighbors.push(paramsBuffer[spanId])
+  if (paramsBuffers[activeCharSpanId][spanId]) {
+    neighbors.push(paramsBuffers[activeCharSpanId][spanId])
   }
 
   spanId = getSpanId(xPlus, yMinus)
-  if (paramsBuffer[spanId]) {
-    neighbors.push(paramsBuffer[spanId])
+  if (paramsBuffers[activeCharSpanId][spanId]) {
+    neighbors.push(paramsBuffers[activeCharSpanId][spanId])
   }
 
   spanId = getSpanId(x, yMinus)
-  if (paramsBuffer[spanId]) {
-    neighbors.push(paramsBuffer[spanId])
+  if (paramsBuffers[activeCharSpanId][spanId]) {
+    neighbors.push(paramsBuffers[activeCharSpanId][spanId])
   }
 
   spanId = getSpanId(xMinus, yMinus)
-  if (paramsBuffer[spanId]) {
-    neighbors.push(paramsBuffer[spanId])
+  if (paramsBuffers[activeCharSpanId][spanId]) {
+    neighbors.push(paramsBuffers[activeCharSpanId][spanId])
   }
   return neighbors
 }

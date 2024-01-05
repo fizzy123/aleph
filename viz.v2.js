@@ -1,6 +1,6 @@
-let charSpans = {};
-let paramsBuffer = {
-}
+let activeCharSpanId = 0;
+let charSpans = [{}, {}];
+let paramsBuffers = [{}, {}];
 let particleBuffers = {
   network: [],
   shower: [],
@@ -64,28 +64,31 @@ function init() {
   const windowWidth = window.innerWidth;
   MAX_X = Math.floor(windowWidth/CHARACTER_WIDTH)
   MAX_Y = Math.floor(windowHeight/CHARACTER_HEIGHT)
-  for(let y=0; y<windowHeight/CHARACTER_HEIGHT; y++) {
-    for(let x=0; x<windowWidth/CHARACTER_WIDTH; x++) {
-      let id = y * Math.floor(windowWidth/CHARACTER_WIDTH) + x
-      const charSpan = {}
-      charSpan.id = id
-      charSpan.x = x
-      charSpan.y = y
-//      charSpan.intensity = Math.random();
-      charSpan.intensity = 0;
-      charSpan.top = y * CHARACTER_HEIGHT;
-      charSpan.left = x * CHARACTER_WIDTH;
-      charSpan.color = "white";
-      charSpan.width = 15;
-      charSpan.height = 15;
-      charSpans[id.toString()] = charSpan
+  for (let [charSpanId, charSpan] of charSpans.entries()) {
+    for(let y=0; y<windowHeight/CHARACTER_HEIGHT; y++) {
+      for(let x=0; x<windowWidth/CHARACTER_WIDTH; x++) {
+        let id = y * Math.floor(windowWidth/CHARACTER_WIDTH) + x
+        const charSpan = {}
+        charSpan.id = id
+        charSpan.x = x
+        charSpan.y = y
+//        charSpan.intensity = Math.random();
+        charSpan.intensity = 0;
+        charSpan.top = y * CHARACTER_HEIGHT;
+        charSpan.left = x * CHARACTER_WIDTH;
+        charSpan.color = "white";
+        charSpan.width = 15;
+        charSpan.height = 15;
+        charSpans[charSpanId][id.toString()] = charSpan
 
-      spanWidth = x
+        spanWidth = x
+      }
+      spanHeight = y
     }
-    spanHeight = y
   }
 }
 
+let intensityOn = false
 async function draw() {
   let canvasCtx = document.getElementById('canvas').getContext("2d");
   // update particles
@@ -93,10 +96,9 @@ async function draw() {
 
   tmpParamsBuffer = {}
   // render spans
-  await Promise.all(Object.keys(charSpans).map((spanId) => {
-    return async function(spanId) {
+  for (let spanId in charSpans[activeCharSpanId]) {
       start = Date.now()
-      let span = charSpans[spanId]
+      let span = charSpans[activeCharSpanId][spanId]
       let newParams = await MODES[CURRENT_MODE].generateParams(span);
 
       tmpParamsBuffer[spanId] = newParams;
@@ -137,17 +139,33 @@ async function draw() {
           spanCharIndex = 0
         }
         span.charIntensity = newParams.charIntensity
-        span.innerText = 
 
         canvasCtx.fillStyle = newParams.color
         canvasCtx.font = "16px Roboto Mono";
 
-        canvasCtx.fillText(currentCharIntensityArray[spanCharIndex], span.x * CHARACTER_WIDTH + 3, (span.y + 1) * CHARACTER_HEIGHT - 1)
+        outputX = span.x * CHARACTER_WIDTH + 3
+        outputY = (span.y + 1) * CHARACTER_HEIGHT - 1
+        canvasCtx.fillText(currentCharIntensityArray[spanCharIndex], outputX, outputY)
       }
-    }(spanId)
-  }))
+  }
+  if (intensityOn) {
+    let canvas = document.getElementById('canvas');
+    let canvasCtx = canvas.getContext("2d");
+    let imageData = canvasCtx.getImageData( 0, 0, canvas.width, canvas.height );
+    let glitchImageData = await glitch( { seed: 500 * Math.random() })
+    .fromImageData( imageData )
+    .toDataURL()
+
+    document.getElementById("test").style.removeProperty("display")
+    document.getElementById("test").src = glitchImageData;
+    document.getElementById("test").style.setProperty("width", canvas.width)
+    document.getElementById("test").style.setProperty("height", canvas.height)
+//    canvasCtx.putImageData( glitchImageData, 0, 0 );
+  } else {
+    document.getElementById("test").style.setProperty("display", "none")
+  }
 //  document.getElementById("fps").innerText = MainLoop.getFPS()
-  paramsBuffer = tmpParamsBuffer
+  paramsBuffers[activeCharSpanId] = tmpParamsBuffer
   reset = false
 }
 
@@ -158,6 +176,7 @@ STARTING_POINTS = []
 let CURRENT_MODE = 'network';
 let MODES = {}
 window.onload = function() {
+  MainLoop.setMaxAllowedFPS(60)
   MODES = {
     network: {
       generateParams: generateNetworkParams,
@@ -208,9 +227,14 @@ window.onload = function() {
   init()
   window.onresize = function() {
     document.body.innerHTML = "";
-    charSpans = {}
+    charSpans = [{}, {}]
     init()
   }
+  document.addEventListener('keydown', (event) => {
+      if (event.key === " ") {
+          intensityOn = true
+      }
+  })
   document.addEventListener('keyup', (event) => {
     var name = event.key;
     var code = event.code;
@@ -234,9 +258,20 @@ window.onload = function() {
       } else {
         document.getElementById("logo").src="bitshifter/transparent.png" 
       }
-    } else if (event.key === "r") {
+    } else if (event.key === " ") {
+        intensityOn = false
+        if (activeCharSpanId == 0) {
+            activeCharSpanId = 1
+        } else {
+            activeCharSpanId = 0
+        }
+        currentPaletteIndex = Math.floor(Math.random() * COLOR_PALETTES.length)
+        if (MODES[CURRENT_MODE].resetFunc) {
+          MODES[CURRENT_MODE].resetFunc()
+        }
     }
   })
   MainLoop.setDraw(draw).start();
 }
+
 LOGO_ON = false

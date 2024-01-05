@@ -40,7 +40,7 @@ async function updateNetworkParticles() {
     let spanX = Math.floor(particle.x / CHARACTER_WIDTH)
     let spanY = Math.floor(particle.y / CHARACTER_HEIGHT)
     let spanId = getSpanId(spanX, spanY)
-    let span = charSpans[spanId.toString()]
+    let span = charSpans[activeCharSpanId][spanId.toString()]
     if (populatedSpans[spanId]) {
       return false
     }
@@ -54,28 +54,28 @@ async function updateNetworkParticles() {
       switch (particle.angleDegrees) {
         case 0:
           nextSpanId = getSpanId(wrapAround(span.x + 1, MAX_X + 1), span.y)
-          nextSpan = charSpans[nextSpanId]
+          nextSpan = charSpans[activeCharSpanId][nextSpanId]
           if (nextSpan && nextSpan.intensity >= 0.01) {
             isCollision = true
           }
           break;
         case 90:
           nextSpanId = getSpanId(span.x, wrapAround(span.y + 1, MAX_Y + 1))
-          nextSpan = charSpans[nextSpanId]
+          nextSpan = charSpans[activeCharSpanId][nextSpanId]
           if (nextSpan && nextSpan.intensity >= 0.01) {
             isCollision = true
           }
           break;
         case 180:
           nextSpanId = getSpanId(wrapAround(span.x - 1, MAX_X + 1), span.y)
-          nextSpan = charSpans[nextSpanId]
+          nextSpan = charSpans[activeCharSpanId][nextSpanId]
           if (nextSpan && nextSpan.intensity >= 0.01) {
             isCollision = true
           }
           break;
         case 270:
           nextSpanId = getSpanId(span.x, wrapAround(span.y - 1, MAX_Y + 1))
-          nextSpan = charSpans[nextSpanId]
+          nextSpan = charSpans[activeCharSpanId][nextSpanId]
           if (nextSpan && nextSpan.intensity >= 0.01) {
             isCollision = true
           }

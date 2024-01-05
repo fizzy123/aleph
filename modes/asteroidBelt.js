@@ -94,7 +94,7 @@ async function updateAsteroidBeltParticles() {
     let spanX = Math.round(particle.x / CHARACTER_WIDTH)
     let spanY = Math.round(particle.y / CHARACTER_HEIGHT)
     let spanId = getSpanId(spanX, spanY)
-    let span = charSpans[spanId.toString()]
+    let span = charSpans[activeCharSpanId][spanId.toString()]
     if (span) {
       span.intensityOverride = particle.life/MAX_LIFE
       if (span.intensityOverride > 1) {
