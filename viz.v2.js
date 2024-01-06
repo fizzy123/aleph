@@ -29,6 +29,23 @@ let CHARACTER_WIDTH = 15;
 let MAX_X = 0;
 let MAX_Y = 0;
 
+const tilesetInfo = [
+    {
+        domID: "tiles",
+        w: 512,
+        h: 512,
+        startX: 16,
+        startY: 16,
+        tileGapX: 8,
+        tileGapY: 8,
+        tileW: 16,
+        tileH: 16,
+    }
+]
+let tilesets = [];
+
+let paletteTileset;
+
 const CHARACTER_INTENSITY_ARRAYS = [
   `$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\|()1{}[]?-_+~<>i!lI;:,"^\`'. `.split("").reverse().join(""),
   ` .:-=+*#%@`
@@ -45,13 +62,53 @@ let LOGO_SRCS=[
   "bitshifter/Bit_Shifter_-_skull_and_text_logo_08_-_alt_layout_-_white_grey_-_transparent_bg_-_4500x4500.png",
   "bitshifter/Bit_Shifter_-_skull_ring_logo_20191003_-_90%_-_white_-_transparent_bg_-_3000x3000.png",
 ]
-
+let tmpCanvas=document.createElement("canvas");
+var tmpCtx=tmpCanvas.getContext("2d", { willReadFrequently: true });
+function createPaletteTileset(tileset, palette) {
+    paletteTileset = []
+    for (let color of palette) {
+        let paletteTiles = []
+        for (let tile of tileset) {
+            let paletteTile = tmpCtx.createImageData(tileset.info.tileW, tileset.info.tileH);
+            paletteTile.data.set(tile.data);
+            for (let i = 0; i < paletteTile.data.length; i += 4) {
+                if (paletteTile.data[i + 0] !== 0 ||
+                    paletteTile.data[i + 1] !== 0 ||
+                    paletteTile.data[i + 2] !== 0
+                ) {
+                    let rgbColor = hexToRgb(color)
+                    paletteTile.data[i + 0] = rgbColor.r // R value
+                    paletteTile.data[i + 1] = rgbColor.g // G value
+                    paletteTile.data[i + 2] = rgbColor.b // B value
+                    paletteTile.data[i + 3] = 255; // A value
+                }
+            }
+            paletteTiles.push(paletteTile)
+        }
+        paletteTileset.push(paletteTiles)
+    }
+}
 
 function getSpanId(spanX, spanY) {
   return spanY * Math.floor(window.innerWidth/CHARACTER_WIDTH) + spanX
 }
 
 function init() {
+  for (let info of tilesetInfo) {
+    let tilesetImage = document.getElementById(info.domID);
+    tmpCtx.drawImage(tilesetImage, 0, 0, info.w, info.h);
+  
+    let tileset = []
+    for (let i=info.startX; i<info.w; i+=info.tileW + info.tileGapX) {
+        for (let j=info.startY; i<info.h; i+=info.tileH + info.tileGapY) {
+            let tile = tmpCtx.getImageData(i, j, info.tileW, info.tileH);
+            tileset.push(tile)
+        }
+    }
+    tileset.info = info;
+    tilesets.push(tileset);
+  }
+
   if (MODES[CURRENT_MODE].resetFunc) {
     MODES[CURRENT_MODE].resetFunc()
   }
@@ -59,6 +116,8 @@ function init() {
   canvas.setAttribute('width', window.innerWidth);
   canvas.setAttribute('height', window.innerHeight);
   currentPaletteIndex = Math.floor(Math.random() * COLOR_PALETTES.length)
+  createPaletteTileset(tilesets[CHARSET_ID], COLOR_PALETTES[currentPaletteIndex])
+
   document.body.style.backgroundColor = "black";
   const windowHeight = window.innerHeight;
   const windowWidth = window.innerWidth;
@@ -118,8 +177,8 @@ async function draw() {
         span.backgroundColor = newParams.backgroundColor
         span.bgIntensity = newParams.bgIntensity
 
-        canvasCtx.fillStyle = newParams.backgroundColor
-        canvasCtx.fillRect(span.x * CHARACTER_WIDTH, span.y * CHARACTER_HEIGHT, span.width, span.height)
+//        canvasCtx.fillStyle = newParams.backgroundColor
+//        canvasCtx.fillRect(span.x * CHARACTER_WIDTH, span.y * CHARACTER_HEIGHT, span.width, span.height)
       }
 
       // configure text params
@@ -130,22 +189,18 @@ async function draw() {
         span.fontWeight = newParams.weight;
       }
       if (newParams.charIntensity !== undefined) {
-        let currentCharIntensityArray = CHARACTER_INTENSITY_ARRAYS[CHARSET_ID]
-        let spanCharIndex = Math.floor(newParams.charIntensity * currentCharIntensityArray.length)
-        if (spanCharIndex >= currentCharIntensityArray.length) {
-          spanCharIndex = currentCharIntensityArray.length - 1
+        let spanCharIndex = Math.floor(newParams.charIntensity * paletteTileset.length)
+        if (spanCharIndex >= paletteTileset.length) {
+          spanCharIndex = paletteTileset.length - 1
         }
         if (spanCharIndex < 0) {
           spanCharIndex = 0
         }
         span.charIntensity = newParams.charIntensity
 
-        canvasCtx.fillStyle = newParams.color
-        canvasCtx.font = "16px Roboto Mono";
-
         outputX = span.x * CHARACTER_WIDTH + 3
         outputY = (span.y + 1) * CHARACTER_HEIGHT - 1
-        canvasCtx.fillText(currentCharIntensityArray[spanCharIndex], outputX, outputY)
+        canvasCtx.putImageData(paletteTileset[spanCharIndex][0], outputX, outputY)
       }
   }
   if (intensityOn) {
@@ -225,6 +280,7 @@ window.onload = function() {
     },
   }
   init()
+
   window.onresize = function() {
     document.body.innerHTML = "";
     charSpans = [{}, {}]
@@ -271,6 +327,9 @@ window.onload = function() {
         }
     }
   })
+
+//  let canvasCtx = document.getElementById('canvas').getContext("2d");
+//  canvasCtx.putImageData(paletteTileset[4][10], 10, 10)
   MainLoop.setDraw(draw).start();
 }
 
