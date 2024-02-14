@@ -32,7 +32,7 @@ let MAX_Y = 0;
 const tilesetInfo = [
     {
         domID: "tiles",
-        w: 512,
+        w: 296,
         h: 512,
         startX: 16,
         startY: 16,
@@ -56,13 +56,8 @@ let currentPaletteIndex
 let currentBufferIndex = 0
 let CHARSET_ID = 0
 
-let LOGO_SRCS=[
-  "bitshifter/Bit_Shifter_-_skull_and_crossbolts_06_c_no_text_-_white_-_transparent_bg_-_3000x3000.png",
-  "bitshifter/Bit_Shifter_-_skull_and_crossbolts_07_with_text_-_white_-_transparent_bg_-_3000x3000.png",
-  "bitshifter/Bit_Shifter_-_skull_and_text_logo_08_-_alt_layout_-_white_grey_-_transparent_bg_-_4500x4500.png",
-  "bitshifter/Bit_Shifter_-_skull_ring_logo_20191003_-_90%_-_white_-_transparent_bg_-_3000x3000.png",
-]
 let tmpCanvas=document.createElement("canvas");
+
 var tmpCtx=tmpCanvas.getContext("2d", { willReadFrequently: true });
 function createPaletteTileset(tileset, palette) {
     paletteTileset = []
@@ -94,17 +89,44 @@ function getSpanId(spanX, spanY) {
 }
 
 function init() {
+  let canvasCtx = document.getElementById('ascii').getContext("2d", { willReadFrequently: true });
   for (let info of tilesetInfo) {
     let tilesetImage = document.getElementById(info.domID);
+    tmpCanvas.setAttribute('width', info.w);
+    tmpCanvas.setAttribute('height', info.h);
     tmpCtx.drawImage(tilesetImage, 0, 0, info.w, info.h);
   
     let tileset = []
     for (let i=info.startX; i<info.w; i+=info.tileW + info.tileGapX) {
-        for (let j=info.startY; i<info.h; i+=info.tileH + info.tileGapY) {
+        for (let j=info.startY; j<info.h; j+=info.tileH + info.tileGapY) {
             let tile = tmpCtx.getImageData(i, j, info.tileW, info.tileH);
+            if (tileset.length == 6) {
+              console.log(i,j)
+            }
+            const intensity = tile.data.reduce(
+                (accumulator, currentValue) => {
+                  if (currentValue != 0) {
+                    return accumulator + 1
+                  } else {
+                    return accumulator
+                  }
+                }, 0
+            ) / 4 / (info.tileW * info.tileH)
+            tile.intensity = intensity
+            tile.x = i
+            tile.y = j
             tileset.push(tile)
         }
     }
+    tileset.sort((a, b) => {
+      if (a.intensity < b.intensity) {
+        return -1;
+      } else if (a.intensity > b.intensity) {
+        return 1;
+      } else {
+        return 0
+      }
+    })
     tileset.info = info;
     tilesets.push(tileset);
   }
@@ -112,9 +134,9 @@ function init() {
   if (MODES[CURRENT_MODE].resetFunc) {
     MODES[CURRENT_MODE].resetFunc()
   }
-  let canvas = document.getElementById('canvas');
-  canvas.setAttribute('width', window.innerWidth);
-  canvas.setAttribute('height', window.innerHeight);
+  let canvas = document.getElementById('ascii');
+  canvas.setAttribute('width', window.innerWidth - (window.innerWidth % CHARACTER_WIDTH));
+  canvas.setAttribute('height', window.innerHeight - (window.innerHeight % CHARACTER_HEIGHT));
   currentPaletteIndex = Math.floor(Math.random() * COLOR_PALETTES.length)
   createPaletteTileset(tilesets[CHARSET_ID], COLOR_PALETTES[currentPaletteIndex])
 
@@ -145,11 +167,12 @@ function init() {
       spanHeight = y
     }
   }
+  initHydra()
 }
 
 let intensityOn = false
 async function draw() {
-  let canvasCtx = document.getElementById('canvas').getContext("2d");
+  let canvasCtx = document.getElementById('ascii').getContext("2d", { willReadFrequently: true });
   // update particles
   await MODES[CURRENT_MODE].updateParticles()
 
@@ -177,8 +200,8 @@ async function draw() {
         span.backgroundColor = newParams.backgroundColor
         span.bgIntensity = newParams.bgIntensity
 
-//        canvasCtx.fillStyle = newParams.backgroundColor
-//        canvasCtx.fillRect(span.x * CHARACTER_WIDTH, span.y * CHARACTER_HEIGHT, span.width, span.height)
+        canvasCtx.fillStyle = newParams.backgroundColor
+        canvasCtx.fillRect(span.x * CHARACTER_WIDTH, span.y * CHARACTER_HEIGHT, span.width, span.height)
       }
 
       // configure text params
@@ -189,35 +212,49 @@ async function draw() {
         span.fontWeight = newParams.weight;
       }
       if (newParams.charIntensity !== undefined) {
-        let spanCharIndex = Math.floor(newParams.charIntensity * paletteTileset.length)
-        if (spanCharIndex >= paletteTileset.length) {
-          spanCharIndex = paletteTileset.length - 1
+        let currentCharIntensityArray = CHARACTER_INTENSITY_ARRAYS[CHARSET_ID]
+        let spanCharIndex = Math.floor(newParams.charIntensity * currentCharIntensityArray.length)
+        if (spanCharIndex >= currentCharIntensityArray.length) {
+          spanCharIndex = currentCharIntensityArray.length - 1
         }
         if (spanCharIndex < 0) {
           spanCharIndex = 0
         }
         span.charIntensity = newParams.charIntensity
 
+        canvasCtx.fillStyle = newParams.color
+        canvasCtx.font = "16px Roboto Mono";
+
         outputX = span.x * CHARACTER_WIDTH + 3
         outputY = (span.y + 1) * CHARACTER_HEIGHT - 1
-        canvasCtx.putImageData(paletteTileset[spanCharIndex][0], outputX, outputY)
+        canvasCtx.fillText(currentCharIntensityArray[spanCharIndex], outputX, outputY)
       }
-  }
-  if (intensityOn) {
-    let canvas = document.getElementById('canvas');
-    let canvasCtx = canvas.getContext("2d");
-    let imageData = canvasCtx.getImageData( 0, 0, canvas.width, canvas.height );
-    let glitchImageData = await glitch( { seed: 500 * Math.random() })
-    .fromImageData( imageData )
-    .toDataURL()
-
-    document.getElementById("test").style.removeProperty("display")
-    document.getElementById("test").src = glitchImageData;
-    document.getElementById("test").style.setProperty("width", canvas.width)
-    document.getElementById("test").style.setProperty("height", canvas.height)
-//    canvasCtx.putImageData( glitchImageData, 0, 0 );
-  } else {
-    document.getElementById("test").style.setProperty("display", "none")
+      if (newParams.tileColor !== undefined) {
+        let paletteIndex = Math.floor(newParams.tileColor * paletteTileset.length)
+        if (paletteIndex >= paletteTileset.length) {
+          paletteIndex = paletteTileset.length - 1
+        }
+        if (paletteIndex < 0) {
+          paletteIndex = 0
+        }
+      }
+      if (newParams.tileChoice !== undefined) {
+        let paletteIndex = Math.floor(newParams.tileChoice * paletteTileset.length)
+        if (paletteIndex >= paletteTileset.length) {
+          paletteIndex = paletteTileset.length - 1
+        }
+        if (paletteIndex < 0) {
+          paletteIndex = 0
+        }
+        let tileIndex = Math.floor(newParams.charIntensity * paletteTileset[0].length)
+        if (tileIndex >= paletteTileset[0].length) {
+          tileIndex = paletteTileset[0].length - 1
+        }
+        if (tileIndex < 0) {
+          tileIndex = 0
+        }
+        canvasCtx.putImageData(paletteTileset[paletteIndex][tileIndex], outputX, outputY)
+      }
   }
 //  document.getElementById("fps").innerText = MainLoop.getFPS()
   paramsBuffers[activeCharSpanId] = tmpParamsBuffer
@@ -294,27 +331,7 @@ window.onload = function() {
   document.addEventListener('keyup', (event) => {
     var name = event.key;
     var code = event.code;
-    if (event.key === "q") {
-      currentPaletteIndex = Math.floor(Math.random() * COLOR_PALETTES.length)
-      if (MODES[CURRENT_MODE].resetFunc) {
-        MODES[CURRENT_MODE].resetFunc()
-      }
-      availableModes = Object.keys(MODES)
-      availableModes.splice(availableModes.indexOf(CURRENT_MODE), 1)
-      CURRENT_MODE = randomChoice(availableModes)
-      if (["sun", "eclipse"].includes(CURRENT_MODE)) {
-        reset = true
-      }
-      if (document.getElementById("logo").src === "file:///Users/seonyoo/ascii-viz/bitshifter/transparent.png") {
-        logo_image = randomChoice(LOGO_SRCS)
-        document.getElementById("logo").src=logo_image;
-        if (CURRENT_MODE === "meteor" || CURRENT_MODE === "saturn") {
-          document.getElementById("logo").src="bitshifter/transparent.png" 
-        }
-      } else {
-        document.getElementById("logo").src="bitshifter/transparent.png" 
-      }
-    } else if (event.key === " ") {
+    if (event.key === " ") {
         intensityOn = false
         if (activeCharSpanId == 0) {
             activeCharSpanId = 1
@@ -325,12 +342,75 @@ window.onload = function() {
         if (MODES[CURRENT_MODE].resetFunc) {
           MODES[CURRENT_MODE].resetFunc()
         }
+    } else if (event.key === "1") {
+      if (MODES[CURRENT_MODE].resetFunc) {
+        MODES[CURRENT_MODE].resetFunc()
+      }
+      CURRENT_MODE = "network"
+    } else if (event.key === "2") {
+      if (MODES[CURRENT_MODE].resetFunc) {
+        MODES[CURRENT_MODE].resetFunc()
+      }
+      CURRENT_MODE = "shower"
+    } else if (event.key === "3") {
+      if (MODES[CURRENT_MODE].resetFunc) {
+        MODES[CURRENT_MODE].resetFunc()
+      }
+      CURRENT_MODE = "waves"
+    } else if (event.key === "4") {
+      if (MODES[CURRENT_MODE].resetFunc) {
+        MODES[CURRENT_MODE].resetFunc()
+      }
+      CURRENT_MODE = "noise"
+    } else if (event.key === "5") {
+      if (MODES[CURRENT_MODE].resetFunc) {
+        MODES[CURRENT_MODE].resetFunc()
+      }
+      CURRENT_MODE = "fungus"
+    } else if (event.key === "6") {
+      if (MODES[CURRENT_MODE].resetFunc) {
+        MODES[CURRENT_MODE].resetFunc()
+      }
+      CURRENT_MODE = "saturn"
+    } else if (event.key === "7") {
+      if (MODES[CURRENT_MODE].resetFunc) {
+        MODES[CURRENT_MODE].resetFunc()
+      }
+      CURRENT_MODE = "asteroidBelt"
+    } else if (event.key === "8") {
+      if (MODES[CURRENT_MODE].resetFunc) {
+        MODES[CURRENT_MODE].resetFunc()
+      }
+      CURRENT_MODE = "eclipse"
+      reset = true
+      cc[0] = 0.5
+      cc[1] = 0.5
+    } else if (event.key === "9") {
+      if (MODES[CURRENT_MODE].resetFunc) {
+        MODES[CURRENT_MODE].resetFunc()
+      }
+      CURRENT_MODE = "sun"
+      reset = true
+      cc[0] = 0.5
+      cc[1] = 0.5
+    } else if (event.key === "0") {
+      if (MODES[CURRENT_MODE].resetFunc) {
+        MODES[CURRENT_MODE].resetFunc()
+      }
+      CURRENT_MODE = "meteor"
+    } else if (event.key === "k") {
+      kaleid = !kaleid
+      runHydra()
+    } else if (event.key === "r") {
+      repeat = !repeat
+      runHydra()
     }
   })
 
 //  let canvasCtx = document.getElementById('canvas').getContext("2d");
-//  canvasCtx.putImageData(paletteTileset[4][10], 10, 10)
+//  for (let tile of tilesets[0]) {
+//    canvasCtx.putImageData(tile, tile.x, tile.y)
+//  }
   MainLoop.setDraw(draw).start();
 }
 
-LOGO_ON = false
